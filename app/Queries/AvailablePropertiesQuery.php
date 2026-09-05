@@ -11,12 +11,13 @@ use Illuminate\Support\Facades\DB;
 class AvailablePropertiesQuery
 {
     /**
-     * @param  array  $filters
+     * @param  array{check_in: string, check_out: string, guests: int, city: string|null}  $filters
      * @param  int  $perPage
      * @return LengthAwarePaginator
      */
     public function paginate(array $filters, int $perPage): LengthAwarePaginator
     {
+        // Rank cheapest bookable offer first
         $bookableOffers = Offer::query()
             ->select([
                 'offers.id',

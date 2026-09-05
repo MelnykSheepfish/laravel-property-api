@@ -12,8 +12,7 @@ class ReservationControllerTest extends TestCase
     use RefreshDatabase;
 
     public function test_valid_payload_creates_the_reservation_and_returns_201(
-    ): void
-    {
+    ): void {
         $offer = Offer::factory()->create(['available_units' => 2]);
 
         $response = $this->postJson(
@@ -70,8 +69,7 @@ class ReservationControllerTest extends TestCase
     }
 
     public function test_repeating_a_client_reference_returns_the_existing_reservation(
-    ): void
-    {
+    ): void {
         $offer = Offer::factory()->create(['available_units' => 3]);
         $first = $this->postJson(
             route('offers.reservations.store', $offer),
@@ -90,8 +88,7 @@ class ReservationControllerTest extends TestCase
     }
 
     public function test_returns_409_when_the_client_reference_belongs_to_another_offer(
-    ): void
-    {
+    ): void {
         Reservation::factory()->create(
             ['client_reference' => 'web-order-9f782b1c']
         );
@@ -106,11 +103,13 @@ class ReservationControllerTest extends TestCase
                 'message',
                 'The client reference is already used for another offer.'
             );
+
+        $this->assertSame(0, $offer->refresh()->reserved_units);
+        $this->assertSame(1, Reservation::count());
     }
 
     public function test_returns_422_when_the_customer_email_is_not_an_email(
-    ): void
-    {
+    ): void {
         $offer = Offer::factory()->create();
 
         $this->postJson(
@@ -146,7 +145,6 @@ class ReservationControllerTest extends TestCase
 
     /**
      * @param  array<string, mixed>  $overrides
-     *
      * @return array<string, mixed>
      */
     private function payload(array $overrides = []): array

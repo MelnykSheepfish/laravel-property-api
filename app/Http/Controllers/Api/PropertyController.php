@@ -10,6 +10,11 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class PropertyController extends Controller
 {
+    /**
+     * @param  SearchPropertiesRequest  $request
+     * @param  AvailablePropertiesQuery  $properties
+     * @return AnonymousResourceCollection
+     */
     public function index(SearchPropertiesRequest $request, AvailablePropertiesQuery $properties): AnonymousResourceCollection
     {
         $page = $properties->paginate(

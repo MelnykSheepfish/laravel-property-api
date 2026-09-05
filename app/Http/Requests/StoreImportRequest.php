@@ -8,7 +8,7 @@ use Illuminate\Validation\Rule;
 class StoreImportRequest extends FormRequest
 {
     /**
-     * @return array
+     * @return array<string, mixed>
      */
     public function rules(): array
     {

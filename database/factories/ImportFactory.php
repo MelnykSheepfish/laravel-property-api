@@ -30,6 +30,10 @@ class ImportFactory extends Factory
         ];
     }
 
+    /**
+     * @param  int  $offers
+     * @return static
+     */
     public function completed(int $offers = 0): static
     {
         return $this->state(fn (): array => [
@@ -40,6 +44,10 @@ class ImportFactory extends Factory
         ]);
     }
 
+    /**
+     * @param  string  $error
+     * @return static
+     */
     public function failed(string $error = 'Something went wrong'): static
     {
         return $this->state(fn (): array => [

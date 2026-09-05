@@ -78,6 +78,10 @@ class Import extends Model
         ]);
     }
 
+    /**
+     * @param  int  $processedOffers
+     * @return void
+     */
     public function markCompleted(int $processedOffers): void
     {
         $this->update([
@@ -88,6 +92,10 @@ class Import extends Model
         ]);
     }
 
+    /**
+     * @param  string  $error
+     * @return void
+     */
     public function markFailed(string $error): void
     {
         $this->update([

@@ -12,10 +12,8 @@ use App\Services\ImportService;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 
-
 class ImportController extends Controller
 {
-
     /**
      * @param  StoreImportRequest  $request
      * @param  ImportService  $imports

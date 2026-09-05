@@ -16,10 +16,10 @@ class ReservationController extends Controller
 {
     /**
      * @param  StoreReservationRequest  $request
-     * @param  Offer                    $offer
-     * @param  ReservationService       $reservations
-     *
+     * @param  Offer  $offer
+     * @param  ReservationService  $reservations
      * @return JsonResponse
+     *
      * @throws OfferNotBookableException
      * @throws Throwable
      */

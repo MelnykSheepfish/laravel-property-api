@@ -7,7 +7,7 @@ use Illuminate\Foundation\Http\FormRequest;
 class StoreReservationRequest extends FormRequest
 {
     /**
-     * @return array[]
+     * @return array<string, mixed>
      */
     public function rules(): array
     {
