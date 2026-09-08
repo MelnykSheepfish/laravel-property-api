@@ -1,0 +1,380 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "Property Offers API",
+    "description": "REST API for async offer imports, cheapest-property search, and safe reservations.\n\nPrerequisites:\n1. `vendor/bin/sail up -d`\n2. `vendor/bin/sail artisan migrate --seed`\n3. `vendor/bin/sail artisan queue:work` (imports stay pending until a worker runs)\n\nSeeded suppliers: `supplier-a`, `supplier-b`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost"
+    },
+    {
+      "key": "importId",
+      "value": "1"
+    },
+    {
+      "key": "offerId",
+      "value": "1"
+    },
+    {
+      "key": "clientReference",
+      "value": "web-order-9f782b1c"
+    }
+  ],
+  "item": [
+    {
+      "name": "Imports",
+      "item": [
+        {
+          "name": "Create import (supplier-a)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 202) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('importId', String(body.data.id));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"supplier\": \"supplier-a\",\n  \"external_import_id\": \"import-2026-09-01-001\",\n  \"sent_at\": \"2026-09-01T10:00:00Z\",\n  \"offers\": [\n    {\n      \"external_id\": \"offer-a-10001\",\n      \"property\": {\n        \"code\": \"BCN-0001\",\n        \"name\": \"Apartment near Sagrada Familia\",\n        \"city\": \"Barcelona\"\n      },\n      \"check_in\": \"2026-10-10\",\n      \"check_out\": \"2026-10-15\",\n      \"max_guests\": 4,\n      \"price\": 72500,\n      \"currency\": \"EUR\",\n      \"available_units\": 2,\n      \"expires_at\": \"2026-12-31T23:59:59Z\"\n    },\n    {\n      \"external_id\": \"offer-a-10002\",\n      \"property\": {\n        \"code\": \"BCN-0002\",\n        \"name\": \"Loft in Gracia\",\n        \"city\": \"Barcelona\"\n      },\n      \"check_in\": \"2026-10-10\",\n      \"check_out\": \"2026-10-15\",\n      \"max_guests\": 2,\n      \"price\": 51000,\n      \"currency\": \"EUR\",\n      \"available_units\": 1,\n      \"expires_at\": \"2026-12-31T23:59:59Z\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/imports",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "imports"]
+            },
+            "description": "Queues an import and returns `202` with `{ id, status }`. Run the queue worker, then use **Get import status**."
+          },
+          "response": []
+        },
+        {
+          "name": "Create import again (idempotent)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"supplier\": \"supplier-a\",\n  \"external_import_id\": \"import-2026-09-01-001\",\n  \"sent_at\": \"2026-09-01T10:00:00Z\",\n  \"offers\": [\n    {\n      \"external_id\": \"offer-a-10001\",\n      \"property\": {\n        \"code\": \"BCN-0001\",\n        \"name\": \"Apartment near Sagrada Familia\",\n        \"city\": \"Barcelona\"\n      },\n      \"check_in\": \"2026-10-10\",\n      \"check_out\": \"2026-10-15\",\n      \"max_guests\": 4,\n      \"price\": 1,\n      \"currency\": \"EUR\",\n      \"available_units\": 99,\n      \"expires_at\": \"2026-12-31T23:59:59Z\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/imports",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "imports"]
+            },
+            "description": "Same `supplier` + `external_import_id` returns the existing import and does not re-queue processing. Payload changes are ignored."
+          },
+          "response": []
+        },
+        {
+          "name": "Create import (supplier-b cheaper)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"supplier\": \"supplier-b\",\n  \"external_import_id\": \"import-2026-09-01-b01\",\n  \"sent_at\": \"2026-09-01T11:00:00Z\",\n  \"offers\": [\n    {\n      \"external_id\": \"offer-b-20001\",\n      \"property\": {\n        \"code\": \"BCN-0001\",\n        \"name\": \"Apartment near Sagrada Familia\",\n        \"city\": \"Barcelona\"\n      },\n      \"check_in\": \"2026-10-10\",\n      \"check_out\": \"2026-10-15\",\n      \"max_guests\": 4,\n      \"price\": 68000,\n      \"currency\": \"EUR\",\n      \"available_units\": 3,\n      \"expires_at\": \"2026-12-31T23:59:59Z\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/imports",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "imports"]
+            },
+            "description": "Second supplier for the same property code with a lower price. After the worker runs, search should pick this offer as `best_offer`."
+          },
+          "response": []
+        },
+        {
+          "name": "Get import status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/imports/{{importId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "imports", "{{importId}}"]
+            },
+            "description": "`importId` is set automatically after **Create import (supplier-a)**."
+          },
+          "response": []
+        },
+        {
+          "name": "Create import (validation error)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"supplier\": \"supplier-z\",\n  \"external_import_id\": \"import-bad\",\n  \"sent_at\": \"2026-09-01T10:00:00Z\",\n  \"offers\": []\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/imports",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "imports"]
+            },
+            "description": "Expect `422` for unknown supplier and empty offers."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Properties",
+      "item": [
+        {
+          "name": "Search properties",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    if (body.data && body.data.length && body.data[0].best_offer) {",
+                  "        pm.collectionVariables.set('offerId', String(body.data[0].best_offer.id));",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/properties?city=Barcelona&check_in=2026-10-10&check_out=2026-10-15&guests=2&page=1&per_page=15",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "properties"],
+              "query": [
+                {
+                  "key": "city",
+                  "value": "Barcelona"
+                },
+                {
+                  "key": "check_in",
+                  "value": "2026-10-10"
+                },
+                {
+                  "key": "check_out",
+                  "value": "2026-10-15"
+                },
+                {
+                  "key": "guests",
+                  "value": "2"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "15"
+                }
+              ]
+            },
+            "description": "Returns properties with the cheapest bookable offer. Saves `offerId` from the first result for reservation requests.\n\nPagination: `links.next`, `links.prev`, `meta.per_page`."
+          },
+          "response": []
+        },
+        {
+          "name": "Search properties (missing params)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/properties",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "properties"]
+            },
+            "description": "Expect `422` without `check_in`, `check_out`, `guests`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Reservations",
+      "item": [
+        {
+          "name": "Create reservation",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('clientReference', 'web-order-' + Date.now());"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_reference\": \"{{clientReference}}\",\n  \"customer_name\": \"John Smith\",\n  \"customer_email\": \"john@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/offers/{{offerId}}/reservations",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "offers", "{{offerId}}", "reservations"]
+            },
+            "description": "Books one unit of `{{offerId}}`. Generates a fresh `clientReference` before each send.\n\nRun **Search properties** first so `offerId` is set, or type an offer id manually."
+          },
+          "response": []
+        },
+        {
+          "name": "Create reservation again (idempotent)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_reference\": \"{{clientReference}}\",\n  \"customer_name\": \"John Smith\",\n  \"customer_email\": \"john@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/offers/{{offerId}}/reservations",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "offers", "{{offerId}}", "reservations"]
+            },
+            "description": "Same `client_reference` returns the existing reservation with `200` and does not consume another unit. Run right after **Create reservation**."
+          },
+          "response": []
+        },
+        {
+          "name": "Create reservation (sold out / conflict)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_reference\": \"web-order-second-attempt\",\n  \"customer_name\": \"Jane Doe\",\n  \"customer_email\": \"jane@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/offers/{{offerId}}/reservations",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "offers", "{{offerId}}", "reservations"]
+            },
+            "description": "Use after the offer has no free units left. Expect `409`."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
