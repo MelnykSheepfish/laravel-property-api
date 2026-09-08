@@ -2,11 +2,21 @@
 
 namespace App\Http\Resources;
 
-use App\Models\Property;
+use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin Property */
+/**
+ * @property string $code
+ * @property string $name
+ * @property string $city
+ * @property int $best_offer_id
+ * @property string $best_offer_supplier
+ * @property int $best_offer_price
+ * @property string $best_offer_currency
+ * @property int $best_offer_available_units
+ * @property CarbonInterface $best_offer_expires_at
+ */
 class PropertyResource extends JsonResource
 {
     /**

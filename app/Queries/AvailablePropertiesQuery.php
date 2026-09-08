@@ -15,7 +15,7 @@ class AvailablePropertiesQuery
      * @param  int  $perPage
      * @return LengthAwarePaginator
      */
-    public function paginate(array $filters, int $perPage): LengthAwarePaginator
+    public function paginate(array $filters, int $perPage = 15): LengthAwarePaginator
     {
         // Rank cheapest bookable offer first
         $bookableOffers = Offer::query()
@@ -35,17 +35,28 @@ class AvailablePropertiesQuery
             ->where('offers.check_in', $filters['check_in'])
             ->where('offers.check_out', $filters['check_out'])
             ->where('offers.max_guests', '>=', $filters['guests'])
-            ->whereColumn('offers.reserved_units', '<', 'offers.available_units')
+            ->whereColumn(
+                'offers.reserved_units',
+                '<',
+                'offers.available_units'
+            )
             ->where('offers.expires_at', '>', now());
 
         return Property::query()
-            ->joinSub($bookableOffers, 'best_offer', fn (JoinClause $join) => $join
-                ->on('best_offer.property_id', '=', 'properties.id')
-                ->where('best_offer.price_rank', 1))
+            ->joinSub(
+                $bookableOffers,
+                'best_offer',
+                fn (JoinClause $join) => $join
+                    ->on('best_offer.property_id', '=', 'properties.id')
+                    ->where('best_offer.price_rank', 1)
+            )
             ->join('suppliers', 'suppliers.id', '=', 'best_offer.supplier_id')
             ->when(
                 $filters['city'] ?? null,
-                fn ($query, string $city) => $query->where('properties.city', $city)
+                fn ($query, string $city) => $query->where(
+                    'properties.city',
+                    $city
+                )
             )
             ->select([
                 'properties.id',
@@ -57,7 +68,9 @@ class AvailablePropertiesQuery
                 'best_offer.price as best_offer_price',
                 'best_offer.currency as best_offer_currency',
                 'best_offer.expires_at as best_offer_expires_at',
-                DB::raw('(best_offer.available_units - best_offer.reserved_units) as best_offer_available_units'),
+                DB::raw(
+                    '(best_offer.available_units - best_offer.reserved_units) as best_offer_available_units'
+                ),
             ])
             ->withCasts([
                 'best_offer_price' => 'integer',

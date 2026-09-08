@@ -4,6 +4,7 @@ namespace Tests\Feature\Services;
 
 use App\Enums\ImportStatus;
 use App\Exceptions\AvailabilityBelowReservationsException;
+use App\Jobs\ProcessImportJob;
 use App\Models\Import;
 use App\Models\Offer;
 use App\Models\Property;
@@ -12,6 +13,8 @@ use App\Models\Supplier;
 use App\Services\ImportService;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class ImportServiceTest extends TestCase
@@ -180,10 +183,65 @@ class ImportServiceTest extends TestCase
 
         $import->refresh();
         $this->assertSame(ImportStatus::Failed, $import->status);
-        $this->assertNotNull($import->error);
+        $this->assertSame('The import failed.', $import->error);
         $this->assertSame(0, $import->processed_offers);
         $this->assertSame(0, Offer::count());
         $this->assertSame(0, Property::count());
+    }
+
+    public function test_create_returns_the_existing_import_and_does_not_queue_again(): void
+    {
+        Queue::fake();
+
+        $payload = [
+            'external_import_id' => 'import-001',
+            'sent_at' => '2026-09-01T10:00:00Z',
+            'offers' => [$this->offerRow()],
+        ];
+
+        $first = $this->imports->create($this->supplier, $payload);
+        $second = $this->imports->create($this->supplier, $payload);
+
+        $this->assertTrue($first->is($second));
+        $this->assertSame(1, Import::count());
+        Queue::assertPushed(ProcessImportJob::class, 1);
+    }
+
+    public function test_create_returns_the_existing_import_when_a_concurrent_insert_races(): void
+    {
+        Queue::fake();
+
+        $externalId = 'import-race';
+        $payload = [
+            'external_import_id' => $externalId,
+            'sent_at' => '2026-09-01T10:00:00Z',
+            'offers' => [$this->offerRow()],
+        ];
+
+        // Simulate the race: SELECT misses, then a concurrent insert wins before ours.
+        Import::creating(function (Import $import) use ($externalId): void {
+            if ($import->external_import_id !== $externalId) {
+                return;
+            }
+
+            DB::table('imports')->insert([
+                'supplier_id' => $import->supplier_id,
+                'external_import_id' => $externalId,
+                'sent_at' => '2026-09-01 10:00:00',
+                'status' => ImportStatus::Pending->value,
+                'total_offers' => 1,
+                'processed_offers' => 0,
+                'payload' => json_encode(['offers' => []], JSON_THROW_ON_ERROR),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        $result = $this->imports->create($this->supplier, $payload);
+
+        $this->assertSame(1, Import::count());
+        $this->assertSame($externalId, $result->external_import_id);
+        Queue::assertNothingPushed();
     }
 
     /**

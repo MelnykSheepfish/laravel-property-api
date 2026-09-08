@@ -7,6 +7,7 @@ use App\Models\Import;
 use App\Services\ImportService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class ProcessImportJob implements ShouldQueue
@@ -39,6 +40,17 @@ class ProcessImportJob implements ShouldQueue
      */
     public function failed(?Throwable $exception): void
     {
-        $this->import->markFailed($exception?->getMessage() ?? 'The import job failed.');
+        if ($exception !== null) {
+            Log::error('Import job failed.', [
+                'import_id' => $this->import->id,
+                'exception' => $exception,
+            ]);
+        }
+
+        $message = $exception instanceof AvailabilityBelowReservationsException
+            ? $exception->getMessage()
+            : 'The import failed.';
+
+        $this->import->markFailed($message);
     }
 }

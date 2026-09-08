@@ -8,7 +8,9 @@ use App\Models\Import;
 use App\Models\Offer;
 use App\Models\Property;
 use App\Models\Supplier;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class ImportService
@@ -24,22 +26,32 @@ class ImportService
      */
     public function create(Supplier $supplier, array $data): Import
     {
-        $import = Import::query()->firstOrCreate(
-            [
+        $existing = Import::query()
+            ->where('supplier_id', $supplier->id)
+            ->where('external_import_id', $data['external_import_id'])
+            ->first();
+
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        try {
+            $import = Import::query()->create([
                 'supplier_id' => $supplier->id,
                 'external_import_id' => $data['external_import_id'],
-            ],
-            [
                 'sent_at' => $data['sent_at'],
                 'total_offers' => count($data['offers']),
                 'payload' => ['offers' => $data['offers']],
-            ],
-        );
-
-        // Queue only a first-time import
-        if ($import->wasRecentlyCreated) {
-            ProcessImportJob::dispatch($import);
+            ]);
+        } catch (UniqueConstraintViolationException) {
+            // Concurrent duplicate of (supplier_id, external_import_id)
+            return Import::query()
+                ->where('supplier_id', $supplier->id)
+                ->where('external_import_id', $data['external_import_id'])
+                ->firstOrFail();
         }
+
+        ProcessImportJob::dispatch($import);
 
         return $import;
     }
@@ -67,7 +79,16 @@ class ImportService
                 $import->markCompleted($processed);
             });
         } catch (Throwable $e) {
-            $import->markFailed($e->getMessage());
+            Log::error('Import processing failed.', [
+                'import_id' => $import->id,
+                'exception' => $e,
+            ]);
+
+            $import->markFailed(
+                $e instanceof AvailabilityBelowReservationsException
+                    ? $e->getMessage()
+                    : 'The import failed.'
+            );
 
             throw $e;
         }

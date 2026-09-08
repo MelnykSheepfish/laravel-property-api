@@ -17,7 +17,7 @@ class StoreImportRequest extends FormRequest
             'external_import_id' => ['required', 'string', 'max:255'],
             'sent_at' => ['required', 'date'],
 
-            'offers' => ['required', 'array', 'min:1'],
+            'offers' => ['required', 'array', 'min:1', 'max:1000'],
             'offers.*.external_id' => ['required', 'string', 'max:255', 'distinct'],
 
             'offers.*.property' => ['required', 'array'],

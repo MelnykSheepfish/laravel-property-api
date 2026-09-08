@@ -43,12 +43,12 @@ class ShowImportControllerTest extends TestCase
 
     public function test_reports_the_error_of_a_failed_import(): void
     {
-        $import = Import::factory()->failed('Data too long for column')->create();
+        $import = Import::factory()->failed('The import failed.')->create();
 
         $this->getJson(route('imports.show', $import))
             ->assertOk()
             ->assertJsonPath('data.status', 'failed')
-            ->assertJsonPath('data.error', 'Data too long for column');
+            ->assertJsonPath('data.error', 'The import failed.');
     }
 
     public function test_returns_404_for_an_unknown_import(): void

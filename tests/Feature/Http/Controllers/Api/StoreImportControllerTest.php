@@ -5,6 +5,7 @@ namespace Tests\Feature\Http\Controllers\Api;
 use App\Enums\ImportStatus;
 use App\Jobs\ProcessImportJob;
 use App\Models\Import;
+use App\Models\Offer;
 use App\Models\Supplier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -30,6 +31,25 @@ class StoreImportControllerTest extends TestCase
         $this->assertSame(ImportStatus::Pending, $import->status);
         $this->assertSame(1, $import->total_offers);
         Queue::assertPushed(ProcessImportJob::class, fn (ProcessImportJob $job): bool => $job->import->is($import));
+    }
+
+    public function test_sync_queue_processes_the_import_and_creates_the_offer(): void
+    {
+        Supplier::factory()->create(['code' => 'supplier-a']);
+
+        $response = $this->postJson(route('imports.store'), $this->payload());
+
+        $import = Import::sole()->fresh();
+        $response->assertAccepted()
+            ->assertJsonPath('data.id', $import->id);
+
+        $this->assertSame(ImportStatus::Completed, $import->status);
+        $this->assertSame(1, $import->processed_offers);
+
+        $offer = Offer::sole();
+        $this->assertSame('offer-a-10001', $offer->external_id);
+        $this->assertSame('BCN-0001', $offer->property->code);
+        $this->assertSame(72500, $offer->price);
     }
 
     public function test_resending_the_same_import_returns_the_original_and_does_not_queue_it_again(): void
